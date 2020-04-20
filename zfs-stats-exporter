@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+import collections
+import http.server
+import io
+import logging
+import os
+import shutil
+import socket
+import socketserver
+import subprocess
+import sys
+
+
+logging.basicConfig(level=logging.INFO)
+
+
+class SimplePromHandler(http.server.BaseHTTPRequestHandler):
+
+    def log_request(self, code=None, size=None):
+        # FIXME: bump standard http_ metrics and send them back on request.
+        pass
+
+    def handle_non_metrics(self):
+        if self.path == "/":
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(
+                ("<html><body>%s exporter.  "
+                "<a href='/metrics'>Metrics.</a>"
+                "<body></html>" % os.path.basename(__file__)).encode("utf-8")
+            )
+            return True
+        elif self.path != "/metrics":
+            self.send_response(404)
+            self.end_headers()
+            return True
+
+    def do_GET(self):
+        if self.handle_non_metrics():
+            return
+
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
+        self.end_headers()
+
+        f = io.StringIO()
+        poolitem = collections.namedtuple('poolitem', 'name size free')
+        poolitems = {}
+        pools = []
+        for r in subprocess.check_output(['zpool', 'list', '-Hp', '-o', 'name,size,free']).splitlines():
+            if not r: continue
+            r = r.split(b"\t")
+            r = poolitem(r[0].decode("utf-8").replace('"', '_'), *(int(x) for x in r[1:]))
+            poolitems[r.name] = r
+            print('zfs_pool_avail_bytes{zpool="%s"} %s' % (r.name, r.free), file=f)
+            print('zfs_pool_size_bytes{zpool="%s"} %s' % (r.name, r.size), file=f)
+            for l in subprocess.check_output(['zpool', 'status', r.name]).splitlines():
+                if not l: continue
+                if not l.startswith(b" state:"): continue
+                healthy = l == b" state: ONLINE"
+                print('zfs_pool_healthy{zpool="%s"} %s' % (r.name, 1 if healthy else 0), file=f)
+        datasetitem = collections.namedtuple('datasetitem', 'name type avail refer used compressratio')
+        for r in subprocess.check_output(['zfs', 'list', '-t', 'filesystem,snapshot,volume', '-Hp', '-o', 'name,type,avail,refer,used,compressratio']).splitlines():
+            if not r: continue
+            def autoint(x):
+                if b"." in x:
+                    return float(x[:-1])
+                try: return int(x)
+                except Exception: return None
+            r = r.split(b"\t")
+            r = datasetitem(
+                r[0].decode("utf-8").replace('"', '_'),
+                r[1].decode("utf-8").replace('"', '_'),
+                *(autoint(x) for x in r[2:])
+            )
+            if r.avail is not None:
+                print('zfs_dataset_avail_bytes{dataset="%s", type="%s"} %s' % (r.name, r.type, r.avail), file=f)
+            if r.refer is not None:
+                print('zfs_dataset_refer_bytes{dataset="%s", type="%s"} %s' % (r.name, r.type, r.refer), file=f)
+            if r.used is not None:
+                print('zfs_dataset_used_bytes{dataset="%s", type="%s"} %s' % (r.name, r.type, r.used), file=f)
+            if r.compressratio is not None:
+                print('zfs_dataset_compress_ratio{dataset="%s", type="%s"} %.2f' % (r.name, r.type, r.compressratio), file=f)
+            try:
+                print('zfs_dataset_size_bytes{dataset="%s", type="%s"} %s' % (r.name, r.type, poolitems[r.name.split("/")[0]].size), file=f)
+            except KeyError:
+                pass
+        f.seek(0)
+        self.wfile.write(f.read().encode("utf-8"))
+
+
+server = http.server.HTTPServer(('', int(sys.argv[1])), SimplePromHandler)
+logging.info("Serving on TCP port %s", sys.argv[1])
+server.serve_forever()
+#    httpd.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

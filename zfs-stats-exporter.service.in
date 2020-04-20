@@ -1,0 +1,10 @@
+[Unit]
+Description=Export ZFS pool and dataset attributes for Prometheus
+
+[Service]
+Environment=ZFS_STATS_EXPORTER_PORT=9101
+EnvironmentFile=-@SYSCONFDIR@/default/zfs-stats-exporter
+ExecStart=@SBINDIR@/zfs-stats-exporter $ZFS_STATS_EXPORTER_PORT
+
+[Install]
+WantedBy=multi-user.target
