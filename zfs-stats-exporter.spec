@@ -3,7 +3,7 @@
 
 Summary:        Export ZFS pool and dataset attributes for Prometheus
 Name:           zfs-stats-exporter
-Version:        0.0.3
+Version:        0.0.4
 Release:        %{mybuildnumber}%{?dist}
 License:        GPL
 Group:          System administration tools
@@ -12,7 +12,11 @@ URL:            https://github.com/Rudd-O/%{name}
 
 BuildArch:      noarch
 
+%if 0%{?fedora} > 29
 BuildRequires:  systemd-rpm-macros
+%else
+%define _unitdir %{_prefix}/lib/systemd/system
+%endif
 
 BuildRequires:  make sed
 Requires:       zfs
