@@ -4,7 +4,7 @@ Description=Export ZFS pool and dataset attributes for Prometheus
 [Service]
 Environment=PORT=9101
 EnvironmentFile=-@SYSCONFDIR@/default/@NAME@
-ExecStart=@SBINDIR@/@NAME@ $ZFS_STATS_EXPORTER_PORT
+ExecStart=@SBINDIR@/@NAME@ $PORT
 
 [Install]
 WantedBy=multi-user.target
