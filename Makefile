@@ -9,6 +9,7 @@ ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 $(NAME).service: $(NAME).service.in
 	cd $(ROOT_DIR) && \
 	cat $(NAME).service.in | \
+	sed "s|@NAME@|$(NAME)|" | \
 	sed "s|@PREFIX@|$(PREFIX)|" | \
 	sed "s|@UNITDIR@|$(UNITDIR)|" | \
 	sed "s|@SBINDIR@|$(SBINDIR)|" | \
@@ -18,9 +19,9 @@ $(NAME).service: $(NAME).service.in
 .PHONY: install uninstall clean dist rpm srpm vendor
 
 install: $(NAME).service
-	cd $(ROOT_DIR) && install -D -m 0755 $(NAME) -t $(DESTDIR)$(SBINDIR)/$(NAME)
-	cd $(ROOT_DIR) && install -D -m 0644 $(NAME).service -t $(DESTDIR)$(UNITDIR)/$(NAME).service
-	cd $(ROOT_DIR) && install -D -m 0644 $(NAME).default -t $(DESTDIR)$(SYSCONFDIR)/default/$(NAME)
+	cd $(ROOT_DIR) && install -D -m 0755 $(NAME) -T $(DESTDIR)$(SBINDIR)/$(NAME)
+	cd $(ROOT_DIR) && install -D -m 0644 $(NAME).service -T $(DESTDIR)$(UNITDIR)/$(NAME).service
+	cd $(ROOT_DIR) && install -D -m 0644 $(NAME).default -T $(DESTDIR)$(SYSCONFDIR)/default/$(NAME)
 	echo Now please systemctl --system daemon-reload >&2
 
 uninstall:
