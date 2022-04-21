@@ -83,6 +83,8 @@ class SimplePromHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
         self.end_headers()
 
+        f = io.StringIO()
+
         for pool, errors in get_error_counts().items():
             for klass, count in errors.items():
                 print(
@@ -91,7 +93,6 @@ class SimplePromHandler(http.server.BaseHTTPRequestHandler):
                     file=f,
                 )
 
-        f = io.StringIO()
         poolitem = collections.namedtuple("poolitem", "name size free")
         poolitems = {}
         pools = []
