@@ -32,9 +32,14 @@ def get_error_counts(
         m = re.match("^  pool: (.+)", line)
         if m:
             pool_name = m.groups(1)[0]
-            error_counts[pool_name] = {"read": 0, "write": 0, "cksum": 0}
+            error_counts[pool_name] = {"read": 0, "write": 0, "cksum": 0, "data_errors": 0}
             summing = 0
             continue
+
+        m = re.match("^errors: ([0-9]+) data errors", line)
+        if m:
+            data_errors, = m.groups()
+            error_counts[pool_name]["data_errors"] += int(data_errors)
 
         m = re.match("^\tNAME", line)
         if m:
