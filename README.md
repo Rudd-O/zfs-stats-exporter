@@ -28,3 +28,30 @@ in this repository's checked-out folder.  The package will be deposited in
 the current directory.
 
 It's also possible to install manually by using `make install`.
+
+## Suggested alerting rules
+
+For unhealthy pools:
+
+```
+  - alert: PoolUnhealthy
+    expr: zfs_pool_healthy == 0
+    for: 10s
+    annotations:
+      summary: '{{ $labels.zpool }} in {{ $labels.instance }} is degraded or faulted'
+  - alert: PoolErrored
+    expr: zfs_pool_errors_total > 0
+    for: 10s
+    annotations:
+      summary: '{{ $labels.zpool }} in {{ $labels.instance }} has had {{ $value }} {{ $labels.class }} errors'
+```
+
+For low pool disk space:
+
+```
+  - alert: PoolSpaceLow
+    expr: '1 - (zfs_dataset_avail_bytes{dataset !~ ".*/.*"} / zfs_dataset_size_bytes{dataset !~ ".*/.*"}) > 0.95'
+    for: 2m
+    annotations:
+      summary: '{{ $labels.dataset }} in {{ $labels.instance }} at {{ $value }} capacity'
+```
