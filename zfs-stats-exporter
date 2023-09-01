@@ -8,16 +8,19 @@ import os
 import re
 import subprocess
 import sys
+import typing
 
 
 logging.basicConfig(level=logging.INFO)
 
 
-def get_error_counts(zpool_status_p_output: str) -> dict[str, dict[str, int]]:
+def get_error_counts(
+    zpool_status_p_output: str,
+) -> typing.Dict[str, typing.Dict[str, int]]:
 
     out = zpool_status_p_output.splitlines()
 
-    error_counts: dict[str, dict[str, int]] = {}
+    error_counts: typing.Dict[str, typing.Dict[str, int]] = {}
     pool_name = ""
     summing = 0
 
@@ -55,8 +58,8 @@ def get_error_counts(zpool_status_p_output: str) -> dict[str, dict[str, int]]:
     return error_counts
 
 
-def get_scrub_progress(zpool_status_p_output: str) -> dict[str, float]:
-    progresses: dict[str, float] = {}
+def get_scrub_progress(zpool_status_p_output: str) -> typing.Dict[str, float]:
+    progresses: typing.Dict[str, float] = {}
     pool_name = ""
 
     for line in zpool_status_p_output.splitlines():
@@ -84,8 +87,8 @@ def get_scrub_progress(zpool_status_p_output: str) -> dict[str, float]:
     return progresses
 
 
-def get_health(zpool_status_p_output: str) -> dict[str, bool]:
-    healths: dict[str, bool] = {}
+def get_health(zpool_status_p_output: str) -> typing.Dict[str, bool]:
+    healths: typing.Dict[str, bool] = {}
     pool_name = ""
 
     for line in zpool_status_p_output.splitlines():

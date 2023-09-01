@@ -3,7 +3,7 @@
 
 Summary:        Export ZFS pool and dataset attributes for Prometheus
 Name:           zfs-stats-exporter
-Version:        0.0.10
+Version:        0.0.11
 Release:        %{mybuildnumber}%{?dist}
 License:        GPL
 Group:          System administration tools
