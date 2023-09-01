@@ -11,6 +11,9 @@ about a system's ZFS pools and datasets:
 * healthy (flag 1/0)
 * pool scrub progress
 
+The node exporter already provides some useful ZFS metrics.  This program
+aims to supplement those.
+
 ## Usage
 
 Run the program `zfs-stats-exporter` with a single positive integer number
