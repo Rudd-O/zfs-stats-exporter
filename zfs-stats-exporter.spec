@@ -22,7 +22,7 @@ BuildRequires:  make sed
 Requires:       zfs
 
 %description
-This service will make available ZFS statistics over a standard Prometheus
+This service will make ZFS available statistics over a standard Prometheus
 exporter interface.
 
 %prep
@@ -39,6 +39,7 @@ make install DESTDIR=$RPM_BUILD_ROOT PREFIX=%{_prefix} SYSCONFDIR=%{_sysconfdir}
 %attr(0755, root, root) %{_sbindir}/%{name}
 %attr(0644, root, root) %{_unitdir}/%{name}.service
 %config(noreplace) %{_sysconfdir}/default/%{name}
+%doc README.md
 
 %post
 %if 0%{?fedora} > 29
