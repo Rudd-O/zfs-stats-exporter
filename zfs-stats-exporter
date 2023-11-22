@@ -17,7 +17,6 @@ logging.basicConfig(level=logging.INFO)
 def get_error_counts(
     zpool_status_p_output: str,
 ) -> typing.Dict[str, typing.Dict[str, int]]:
-
     out = zpool_status_p_output.splitlines()
 
     error_counts: typing.Dict[str, typing.Dict[str, int]] = {}
@@ -106,6 +105,24 @@ def get_health(zpool_status_p_output: str) -> typing.Dict[str, bool]:
     return healths
 
 
+_module_version: str | None = ""
+
+
+def get_kernel_module_version() -> str | None:
+    """Get the kernel module version.
+
+    This function caches it for the duration of the process.
+    """
+    global _module_version
+    if _module_version == "":
+        try:
+            with open("/sys/module/zfs/version") as f:
+                _module_version = f.read().strip()
+        except Exception:
+            _module_version = None
+    return _module_version
+
+
 class SimplePromHandler(http.server.BaseHTTPRequestHandler):
     def log_request(self, code=None, size=None):
         # FIXME: bump standard http_ metrics and send them back on request.
@@ -138,6 +155,21 @@ class SimplePromHandler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
         f = io.StringIO()
+
+        module_version = get_kernel_module_version()
+        if module_version:
+            print(
+                'zfs_info{version="%s"} %s' % (module_version, 1),
+                file=f,
+            )
+        else:
+            print(
+                "zfs_info %s" % (0,),
+                file=f,
+            )
+            f.seek(0)
+            self.wfile.write(f.read().encode("utf-8"))
+            return
 
         zpool_status_p_output = subprocess.check_output(
             ["zpool", "status", "-p"], universal_newlines=True
@@ -206,7 +238,7 @@ class SimplePromHandler(http.server.BaseHTTPRequestHandler):
             r = datasetitem(
                 r[0].decode("utf-8").replace('"', "_"),
                 r[1].decode("utf-8").replace('"', "_"),
-                *(autoint(x) for x in r[2:])
+                *(autoint(x) for x in r[2:]),
             )
             if r.avail is not None:
                 print(
