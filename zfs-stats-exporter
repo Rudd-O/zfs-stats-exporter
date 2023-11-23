@@ -105,10 +105,10 @@ def get_health(zpool_status_p_output: str) -> typing.Dict[str, bool]:
     return healths
 
 
-_module_version: str | None = ""
+_module_version = ""
 
 
-def get_kernel_module_version() -> str | None:
+def get_kernel_module_version():
     """Get the kernel module version.
 
     This function caches it for the duration of the process.
