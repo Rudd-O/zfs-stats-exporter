@@ -57,8 +57,33 @@ def get_error_counts(
     return error_counts
 
 
-def get_scrub_progress(zpool_status_p_output: str) -> typing.Dict[str, float]:
-    progresses: typing.Dict[str, float] = {}
+def get_progress_status(line: str) -> typing.Tuple[float, float] | None:
+    m = re.match(".*, ([0-9.]+)% done,.*", line)
+    if m:
+        progress = float(m.groups(1)[0]) / 100.0
+        n = re.match(".*,(|[0-9]+ days) ([0-9]+):([0-9]+):([0-9]+) to go", line)
+        if n:
+            days_str, hours, minutes, seconds = (
+                str(n.groups(1)[0]),
+                int(n.groups(1)[1]),
+                int(n.groups(1)[2]),
+                int(n.groups(1)[3]),
+            )
+            if days_str.endswith(" days"):
+                days = int(days_str[:-5])
+            else:
+                days = 0
+            estimate = float(days * 86400 + hours * 3600 + minutes * 60 + seconds)
+        else:
+            estimate = float("inf")
+        return (progress, estimate)
+    return None
+
+
+def get_scrub_progress(
+    zpool_status_p_output: str,
+) -> typing.Dict[str, typing.Tuple[float, float]]:
+    progresses: typing.Dict[str, typing.Tuple[float, float]] = {}
     pool_name = ""
 
     for line in zpool_status_p_output.splitlines():
@@ -70,7 +95,7 @@ def get_scrub_progress(zpool_status_p_output: str) -> typing.Dict[str, float]:
 
         m = re.match(".*scrub repaired.*", line)
         if m:
-            progresses[pool_name] = 1.0
+            progresses[pool_name] = (1.0, 0.0)
             continue
 
         m = re.match(".*scrub in progress.*", line)
@@ -79,15 +104,17 @@ def get_scrub_progress(zpool_status_p_output: str) -> typing.Dict[str, float]:
             continue
 
         if scrubbing:
-            m = re.match(".*, ([0-9.]+)% done,.*", line)
-            if m:
-                progresses[pool_name] = float(m.groups(1)[0]) / 100.0
+            p = get_progress_status(line)
+            if p is not None:
+                progresses[pool_name] = p
 
     return progresses
 
 
-def get_resilver_progress(zpool_status_p_output: str) -> typing.Dict[str, float]:
-    progresses: typing.Dict[str, float] = {}
+def get_resilver_progress(
+    zpool_status_p_output: str,
+) -> typing.Dict[str, typing.Tuple[float, float]]:
+    progresses: typing.Dict[str, typing.Tuple[float, float]] = {}
     pool_name = ""
 
     for line in zpool_status_p_output.splitlines():
@@ -99,7 +126,7 @@ def get_resilver_progress(zpool_status_p_output: str) -> typing.Dict[str, float]
 
         m = re.match(".*resilvered.*in.*with", line)
         if m:
-            progresses[pool_name] = 1.0
+            progresses[pool_name] = (1.0, 0.0)
             continue
 
         m = re.match(".*resilver in progress.*", line)
@@ -108,9 +135,9 @@ def get_resilver_progress(zpool_status_p_output: str) -> typing.Dict[str, float]
             continue
 
         if resilvering:
-            m = re.match(".*, ([0-9.]+)% done,.*", line)
-            if m:
-                progresses[pool_name] = float(m.groups(1)[0]) / 100.0
+            p = get_progress_status(line)
+            if p is not None:
+                progresses[pool_name] = p
 
     return progresses
 
@@ -212,15 +239,30 @@ class SimplePromHandler(http.server.BaseHTTPRequestHandler):
                     file=f,
                 )
 
+        def plusinf(f: float) -> str | float:
+            if f == float("inf"):
+                return "+Inf"
+            return f
+
         for pool, progress in get_scrub_progress(zpool_status_p_output).items():
             print(
-                'zfs_pool_scrub_progress{zpool="%s"} %s' % (pool, progress),
+                'zfs_pool_scrub_progress{zpool="%s"} %s' % (pool, progress[0]),
+                file=f,
+            )
+            print(
+                'zfs_pool_scrub_remaining_time_seconds{zpool="%s"} %s'
+                % (pool, plusinf(progress[1])),
                 file=f,
             )
 
         for pool, progress in get_resilver_progress(zpool_status_p_output).items():
             print(
-                'zfs_pool_resilver_progress{zpool="%s"} %s' % (pool, progress),
+                'zfs_pool_resilver_progress{zpool="%s"} %s' % (pool, progress[0]),
+                file=f,
+            )
+            print(
+                'zfs_pool_resilver_remaining_time_seconds{zpool="%s"} %s'
+                % (pool, plusinf(progress[1])),
                 file=f,
             )
 
