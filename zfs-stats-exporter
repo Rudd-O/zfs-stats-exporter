@@ -86,6 +86,35 @@ def get_scrub_progress(zpool_status_p_output: str) -> typing.Dict[str, float]:
     return progresses
 
 
+def get_resilver_progress(zpool_status_p_output: str) -> typing.Dict[str, float]:
+    progresses: typing.Dict[str, float] = {}
+    pool_name = ""
+
+    for line in zpool_status_p_output.splitlines():
+        m = re.match("^  pool: (.+)", line)
+        if m:
+            pool_name = str(m.groups(1)[0])
+            resilvering = False
+            continue
+
+        m = re.match(".*resilvered.*in.*with", line)
+        if m:
+            progresses[pool_name] = 1.0
+            continue
+
+        m = re.match(".*resilver in progress.*", line)
+        if m:
+            resilvering = True
+            continue
+
+        if resilvering:
+            m = re.match(".*, ([0-9.]+)% done,.*", line)
+            if m:
+                progresses[pool_name] = float(m.groups(1)[0]) / 100.0
+
+    return progresses
+
+
 def get_health(zpool_status_p_output: str) -> typing.Dict[str, bool]:
     healths: typing.Dict[str, bool] = {}
     pool_name = ""
@@ -186,6 +215,12 @@ class SimplePromHandler(http.server.BaseHTTPRequestHandler):
         for pool, progress in get_scrub_progress(zpool_status_p_output).items():
             print(
                 'zfs_pool_scrub_progress{zpool="%s"} %s' % (pool, progress),
+                file=f,
+            )
+
+        for pool, progress in get_resilver_progress(zpool_status_p_output).items():
+            print(
+                'zfs_pool_resilver_progress{zpool="%s"} %s' % (pool, progress),
                 file=f,
             )
 
